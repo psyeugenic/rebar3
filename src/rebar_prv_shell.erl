@@ -132,7 +132,22 @@ kill_old_user() ->
     %% but without taking down the supervision tree so that the escript doesn't
     %% fully die
     [P] = [P || P <- element(2,process_info(whereis(user), links)), is_port(P)],
-    user ! {'EXIT', P, normal}, % pretend the port died, then the port can die!
+    Me = self(),
+    %% setup waiter for the port
+    Wait = spawn(fun() -> erlang:process_flag(trap_exit, true),
+                          link(P),
+                          % pretend the port died, then the port can die!
+                          user ! {'EXIT', P, normal},
+                          % send from the same process so we
+                          % don't introduce another race
+                          receive
+                              {'EXIT', P, normal} ->
+                                  Me ! {self(), complete}
+                          end
+                 end),
+    %%  need to wait for the port to fully terminate otherwise the new user
+    %% might steal it's fds
+    receive {Wait, complete} -> ok end,
     OldUser.
 
 setup_new_shell() ->
