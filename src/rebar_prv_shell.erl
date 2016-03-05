@@ -151,8 +151,6 @@ kill_old_user() ->
     OldUser.
 
 setup_new_shell() ->
-    %% terminate the current user supervision structure
-    ok = supervisor:terminate_child(kernel_sup, user),
     %% start a new shell (this also starts a new user under the correct group)
     _ = user_drv:start(),
     %% wait until user_drv and user have been registered (max 3 seconds)
